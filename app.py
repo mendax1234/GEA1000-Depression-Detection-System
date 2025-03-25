@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import numpy as np
 
 # Load saved objects
 scaler = joblib.load('model/scaler.joblib')
@@ -42,7 +43,7 @@ def show_input_form():
         
         # Column 2: Lifestyle and Mental Health Inputs
         with col2:
-            cgpa = col2.slider("CGPA (0–4 Scale)", min_value=0.0, max_value=10.0, value=3.0, step=0.01)
+            cgpa = col2.slider("CGPA (0–10 Scale)", min_value=0.0, max_value=10.0, value=3.0, step=0.01)
             work_study_hours = col2.slider("Work/Study Hours per Week", min_value=0, max_value=80, value=40)
             work_pressure = col2.slider("Work Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
             job_satisfaction = col2.slider("Job Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
@@ -80,10 +81,8 @@ def show_input_form():
             # Encode ordinal variables
             for col in ordinal_columns:
                 if col == 'Sleep_Duration':
-                    # Use the mapping stored in label_encoders
                     user_df[col] = user_df[col].map(label_encoders[col])
                 else:
-                    # Use LabelEncoder for other ordinal variables
                     user_df[col] = label_encoders[col].transform(user_df[col].astype(int))
 
             # Normalize numerical features
@@ -99,11 +98,13 @@ def show_input_form():
                 user_df_encoded[col] = 0
             user_df_encoded = user_df_encoded[feature_names]
 
-            # Make prediction
-            prediction = model.predict(user_df_encoded)
-            st.session_state.prediction = prediction[0]
+            # Make prediction with adjusted threshold
+            threshold = 0.3
+            prediction_proba = model.predict_proba(user_df_encoded)
+            prediction = (prediction_proba[:, 1] >= threshold).astype(int)  # 1 = "Yes", 0 = "No"
+            st.session_state.prediction = "Yes" if prediction[0] == 1 else "No"
             
-            if prediction[0] == 'Yes':
+            if st.session_state.prediction == "Yes":
                 st.session_state.view = 'warning'
             else:
                 st.session_state.view = 'safe'
@@ -187,7 +188,7 @@ def show_copyright():
         }
         </style>
         <div class="copyright">
-            © 2025 Depression Prediction App. All rights reserved.
+            © 2025 Wenbo (Daniel) Zhu. All rights reserved.
         </div>
         """, 
         unsafe_allow_html=True
