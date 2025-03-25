@@ -10,8 +10,7 @@ feature_names = joblib.load('model/feature_names.joblib')
 
 # Define nominal_columns
 nominal_columns = ['Gender', 'City', 'Profession', 'Dietary_Habits', 'Degree', 
-                   'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness', 
-                   'Sleep_Duration']
+                   'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness']
 
 # Initialize session state
 if 'view' not in st.session_state:
@@ -22,9 +21,6 @@ if 'prediction' not in st.session_state:
 # Function to display the input form
 def show_input_form():
     st.title("Depression Prediction App")
-    st.write("""
-        Created by Wenbo Zhu from GEA1000 TD05 Group 5. All rights reserved.
-    """)
 
     with st.form("user_input_form"):
         col1, col2 = st.columns(2)
@@ -35,18 +31,22 @@ def show_input_form():
             city = col1.selectbox("City", options=categorical_options['City'])
             profession = col1.selectbox("Profession", options=categorical_options['Profession'])
             degree = col1.selectbox("Degree", options=categorical_options['Degree'])
+            academic_pressure = col1.slider("Academic Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
+            study_satisfaction = col1.slider("Study Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
         
         with col2:
-            cgpa = col2.slider("CGPA", min_value=0.0, max_value=4.0, value=3.0, step=0.1)
-            work_study_hours = col2.slider("Work/Study Hours per Week", min_value=0, max_value=80, value=40)
+            cgpa = col2.slider("CGPA (0–10 Scale)", min_value=0.0, max_value=10.0, value=5.0, step=0.1)
+            work_study_hours = col2.slider("Work/Study Hours per Day", min_value=0, max_value=24, value=8)
+            work_pressure = col2.slider("Work Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
+            job_satisfaction = col2.slider("Job Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
+            sleep_duration = col2.slider("Sleep Duration (Hours per Day)", min_value=0, max_value=24, value=8)
             dietary_habits = col2.selectbox("Dietary Habits", options=categorical_options['Dietary_Habits'])
-            sleep_duration = col2.selectbox("Sleep Duration", options=categorical_options['Sleep_Duration'])
-            suicidal_thoughts = col2.radio("Suicidal Thoughts?", options=categorical_options['Have_you_ever_had_suicidal_thoughts_'])
-            family_history = col2.radio("Family History?", options=categorical_options['Family_History_of_Mental_Illness'])
+            financial_stress = col2.slider("Financial Stress (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
+            suicidal_thoughts = col2.radio("Have you ever had suicidal thoughts?", options=categorical_options['Have_you_ever_had_suicidal_thoughts_'])
+            family_history = col2.radio("Family History of Mental Illness?", options=categorical_options['Family_History_of_Mental_Illness'])
         
         submit_button = st.form_submit_button("Predict")
 
-    # Handle form submission
     if submit_button:
         user_input = {
             'Age': age,
@@ -54,10 +54,15 @@ def show_input_form():
             'City': city,
             'Profession': profession,
             'Degree': degree,
+            'Academic_Pressure': academic_pressure,
+            'Work_Pressure': work_pressure,
             'CGPA': cgpa,
-            'Work_Study_Hours': work_study_hours,
-            'Dietary_Habits': dietary_habits,
+            'Study_Satisfaction': study_satisfaction,
+            'Job_Satisfaction': job_satisfaction,
             'Sleep_Duration': sleep_duration,
+            'Dietary_Habits': dietary_habits,
+            'Work_Study_Hours': work_study_hours,
+            'Financial_Stress': financial_stress,
             'Have_you_ever_had_suicidal_thoughts_': suicidal_thoughts,
             'Family_History_of_Mental_Illness': family_history
         }
@@ -65,7 +70,8 @@ def show_input_form():
         user_df = pd.DataFrame([user_input])
 
         try:
-            numerical_columns = ['Age', 'CGPA', 'Work_Study_Hours']
+            numerical_columns = ['Age', 'CGPA', 'Work_Study_Hours', 'Academic_Pressure', 'Work_Pressure', 
+                                 'Study_Satisfaction', 'Job_Satisfaction', 'Sleep_Duration', 'Financial_Stress']
             user_df[numerical_columns] = scaler.transform(user_df[numerical_columns])
             user_df_encoded = pd.get_dummies(user_df, columns=nominal_columns, drop_first=True)
             missing_cols = set(feature_names) - set(user_df_encoded.columns)
@@ -76,12 +82,11 @@ def show_input_form():
             prediction = model.predict(user_df_encoded)
             st.session_state.prediction = prediction[0]
             
-            # Update view based on prediction and force re-run
             if prediction[0] == 'Yes':
                 st.session_state.view = 'warning'
             else:
                 st.session_state.view = 'safe'
-            st.rerun()  # Force re-run to immediately reflect the new view
+            st.rerun()
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
@@ -115,7 +120,7 @@ def show_warning():
     if st.button("Back to Input Form"):
         st.session_state.view = 'input'
         st.session_state.prediction = None
-        st.rerun()  # Force re-run to immediately return to input form
+        st.rerun()
 
 # Function to display the green safe interface
 def show_safe():
@@ -146,7 +151,26 @@ def show_safe():
     if st.button("Back to Input Form"):
         st.session_state.view = 'input'
         st.session_state.prediction = None
-        st.rerun()  # Force re-run to immediately return to input form
+        st.rerun()
+
+# Function to display the copyright notice
+def show_copyright():
+    st.markdown(
+        """
+        <style>
+        .copyright {
+            text-align: center;
+            color: #666666;
+            margin-top: 50px;
+            font-size: 14px;
+        }
+        </style>
+        <div class="copyright">
+            © 2025 Wenbo Zhu. All rights reserved.
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
 
 # Main app logic
 if st.session_state.view == 'input':
@@ -155,3 +179,6 @@ elif st.session_state.view == 'warning':
     show_warning()
 elif st.session_state.view == 'safe':
     show_safe()
+
+# Display copyright notice on all views
+show_copyright()
