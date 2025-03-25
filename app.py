@@ -8,14 +8,14 @@ model = joblib.load('model/random_forest_model.joblib')
 categorical_options = joblib.load('model/categorical_options.joblib')
 feature_names = joblib.load('model/feature_names.joblib')
 
-# Define nominal_columns (fixing previous error)
+# Define nominal_columns
 nominal_columns = ['Gender', 'City', 'Profession', 'Dietary_Habits', 'Degree', 
                    'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness', 
                    'Sleep_Duration']
 
-# Initialize session state for view management
+# Initialize session state
 if 'view' not in st.session_state:
-    st.session_state.view = 'input'  # Default view is the input form
+    st.session_state.view = 'input'
 if 'prediction' not in st.session_state:
     st.session_state.prediction = None
 
@@ -23,9 +23,7 @@ if 'prediction' not in st.session_state:
 def show_input_form():
     st.title("Depression Prediction App")
     st.write("""
-        This app predicts whether you might be experiencing depression based on your inputs.
-        Please provide the following information and click 'Predict'.
-        **Note:** This is a model prediction, not a medical diagnosis. Consult a professional for health concerns.
+        Created by Wenbo Zhu from GEA1000 TD05 Group 5. All rights reserved.
     """)
 
     with st.form("user_input_form"):
@@ -48,6 +46,7 @@ def show_input_form():
         
         submit_button = st.form_submit_button("Predict")
 
+    # Handle form submission
     if submit_button:
         user_input = {
             'Age': age,
@@ -63,10 +62,8 @@ def show_input_form():
             'Family_History_of_Mental_Illness': family_history
         }
 
-        # Convert to DataFrame
         user_df = pd.DataFrame([user_input])
 
-        # Preprocess the input
         try:
             numerical_columns = ['Age', 'CGPA', 'Work_Study_Hours']
             user_df[numerical_columns] = scaler.transform(user_df[numerical_columns])
@@ -76,15 +73,15 @@ def show_input_form():
                 user_df_encoded[col] = 0
             user_df_encoded = user_df_encoded[feature_names]
 
-            # Make prediction
             prediction = model.predict(user_df_encoded)
             st.session_state.prediction = prediction[0]
             
-            # Switch view based on prediction
-            if prediction[0] == 'Yes':  # Adjust based on your model's output
+            # Update view based on prediction and force re-run
+            if prediction[0] == 'Yes':
                 st.session_state.view = 'warning'
             else:
                 st.session_state.view = 'safe'
+            st.rerun()  # Force re-run to immediately reflect the new view
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
@@ -100,17 +97,25 @@ def show_warning():
             border-radius: 10px;
             text-align: center;
         }
+        .warning-text {
+            color: #000000;
+        }
+        .back-button {
+            margin-top: 20px;
+        }
         </style>
         <div class="warning-box">
             <h2 style="color: red;">⚠️ Warning: Depression Tendency Detected</h2>
-            <p>The model predicts you might be experiencing depression. Please consider consulting a mental health professional.</p>
+            <p class="warning-text">The model predicts you might be experiencing depression. Please consider consulting a mental health professional.</p>
         </div>
         """, 
         unsafe_allow_html=True
     )
+    st.markdown('<div class="back-button"></div>', unsafe_allow_html=True)
     if st.button("Back to Input Form"):
         st.session_state.view = 'input'
         st.session_state.prediction = None
+        st.rerun()  # Force re-run to immediately return to input form
 
 # Function to display the green safe interface
 def show_safe():
@@ -123,19 +128,27 @@ def show_safe():
             border-radius: 10px;
             text-align: center;
         }
+        .safe-text {
+            color: #000000;
+        }
+        .back-button {
+            margin-top: 20px;
+        }
         </style>
         <div class="safe-box">
             <h2 style="color: green;">✅ Safe: No Depression Tendency</h2>
-            <p>The model predicts you are not experiencing depression. Stay well!</p>
+            <p class="safe-text">The model predicts you are not experiencing depression. Stay well!</p>
         </div>
         """, 
         unsafe_allow_html=True
     )
+    st.markdown('<div class="back-button"></div>', unsafe_allow_html=True)
     if st.button("Back to Input Form"):
         st.session_state.view = 'input'
         st.session_state.prediction = None
+        st.rerun()  # Force re-run to immediately return to input form
 
-# Main app logic based on current view
+# Main app logic
 if st.session_state.view == 'input':
     show_input_form()
 elif st.session_state.view == 'warning':
