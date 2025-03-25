@@ -3,10 +3,10 @@ import pandas as pd
 import joblib
 
 # Load saved objects
-scaler = joblib.load('scaler.joblib')
-model = joblib.load('random_forest_model.joblib')
-categorical_options = joblib.load('categorical_options.joblib')
-feature_names = joblib.load('feature_names.joblib')
+scaler = joblib.load('model/scaler.joblib')
+model = joblib.load('model/random_forest_model.joblib')
+categorical_options = joblib.load('model/categorical_options.joblib')
+feature_names = joblib.load('model/feature_names.joblib')
 
 # Define nominal_columns (fixing previous error)
 nominal_columns = ['Gender', 'City', 'Profession', 'Dietary_Habits', 'Degree', 
