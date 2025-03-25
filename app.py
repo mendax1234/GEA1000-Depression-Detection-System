@@ -42,7 +42,7 @@ def show_input_form():
         
         # Column 2: Lifestyle and Mental Health Inputs
         with col2:
-            cgpa = col2.slider("CGPA (0–4 Scale)", min_value=0.0, max_value=4.0, value=3.0, step=0.1)
+            cgpa = col2.slider("CGPA (0–4 Scale)", min_value=0.0, max_value=10.0, value=3.0, step=0.01)
             work_study_hours = col2.slider("Work/Study Hours per Week", min_value=0, max_value=80, value=40)
             work_pressure = col2.slider("Work Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
             job_satisfaction = col2.slider("Job Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
