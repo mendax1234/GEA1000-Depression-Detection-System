@@ -10,7 +10,8 @@ feature_names = joblib.load('model/feature_names.joblib')
 
 # Define nominal_columns
 nominal_columns = ['Gender', 'City', 'Profession', 'Dietary_Habits', 'Degree', 
-                   'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness']
+                   'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness', 
+                   'Sleep_Duration']
 
 # Initialize session state
 if 'view' not in st.session_state:
@@ -25,23 +26,20 @@ def show_input_form():
     with st.form("user_input_form"):
         col1, col2 = st.columns(2)
         
+        # Column 1: Personal and Education Inputs
         with col1:
             age = col1.slider("Age", min_value=18, max_value=80, value=25)
             gender = col1.selectbox("Gender", options=categorical_options['Gender'])
             city = col1.selectbox("City", options=categorical_options['City'])
             profession = col1.selectbox("Profession", options=categorical_options['Profession'])
             degree = col1.selectbox("Degree", options=categorical_options['Degree'])
-            academic_pressure = col1.slider("Academic Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
-            study_satisfaction = col1.slider("Study Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
         
+        # Column 2: Lifestyle and Mental Health Inputs
         with col2:
-            cgpa = col2.slider("CGPA (0–10 Scale)", min_value=0.0, max_value=10.0, value=5.0, step=0.1)
-            work_study_hours = col2.slider("Work/Study Hours per Day", min_value=0, max_value=24, value=8)
-            work_pressure = col2.slider("Work Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
-            job_satisfaction = col2.slider("Job Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
-            sleep_duration = col2.slider("Sleep Duration (Hours per Day)", min_value=0, max_value=24, value=8)
+            cgpa = col2.slider("CGPA (0–10 Scale)", min_value=0.0, max_value=10.0, value=3.0, step=0.01)
+            work_study_hours = col2.slider("Work/Study Hours per Week", min_value=0, max_value=80, value=40)
             dietary_habits = col2.selectbox("Dietary Habits", options=categorical_options['Dietary_Habits'])
-            financial_stress = col2.slider("Financial Stress (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
+            sleep_duration = col2.selectbox("Sleep Duration", options=categorical_options['Sleep_Duration'])
             suicidal_thoughts = col2.radio("Have you ever had suicidal thoughts?", options=categorical_options['Have_you_ever_had_suicidal_thoughts_'])
             family_history = col2.radio("Family History of Mental Illness?", options=categorical_options['Family_History_of_Mental_Illness'])
         
@@ -54,15 +52,10 @@ def show_input_form():
             'City': city,
             'Profession': profession,
             'Degree': degree,
-            'Academic_Pressure': academic_pressure,
-            'Work_Pressure': work_pressure,
             'CGPA': cgpa,
-            'Study_Satisfaction': study_satisfaction,
-            'Job_Satisfaction': job_satisfaction,
-            'Sleep_Duration': sleep_duration,
-            'Dietary_Habits': dietary_habits,
             'Work_Study_Hours': work_study_hours,
-            'Financial_Stress': financial_stress,
+            'Dietary_Habits': dietary_habits,
+            'Sleep_Duration': sleep_duration,
             'Have_you_ever_had_suicidal_thoughts_': suicidal_thoughts,
             'Family_History_of_Mental_Illness': family_history
         }
@@ -70,8 +63,7 @@ def show_input_form():
         user_df = pd.DataFrame([user_input])
 
         try:
-            numerical_columns = ['Age', 'CGPA', 'Work_Study_Hours', 'Academic_Pressure', 'Work_Pressure', 
-                                 'Study_Satisfaction', 'Job_Satisfaction', 'Sleep_Duration', 'Financial_Stress']
+            numerical_columns = ['Age', 'CGPA', 'Work_Study_Hours']
             user_df[numerical_columns] = scaler.transform(user_df[numerical_columns])
             user_df_encoded = pd.get_dummies(user_df, columns=nominal_columns, drop_first=True)
             missing_cols = set(feature_names) - set(user_df_encoded.columns)
@@ -166,7 +158,7 @@ def show_copyright():
         }
         </style>
         <div class="copyright">
-            © 2025 Wenbo Zhu. All rights reserved.
+            © 2025 Depression Prediction App. All rights reserved.
         </div>
         """, 
         unsafe_allow_html=True
