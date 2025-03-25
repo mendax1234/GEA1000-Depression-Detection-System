@@ -7,11 +7,15 @@ scaler = joblib.load('model/scaler.joblib')
 model = joblib.load('model/random_forest_model.joblib')
 categorical_options = joblib.load('model/categorical_options.joblib')
 feature_names = joblib.load('model/feature_names.joblib')
+label_encoders = joblib.load('model/label_encoders.joblib')
 
 # Define nominal_columns
 nominal_columns = ['Gender', 'City', 'Profession', 'Dietary_Habits', 'Degree', 
-                   'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness', 
-                   'Sleep_Duration']
+                   'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness']
+
+# Define ordinal_columns
+ordinal_columns = ['Academic_Pressure', 'Work_Pressure', 'Study_Satisfaction', 'Job_Satisfaction', 
+                  'Sleep_Duration', 'Financial_Stress']
 
 # Initialize session state
 if 'view' not in st.session_state:
@@ -33,13 +37,18 @@ def show_input_form():
             city = col1.selectbox("City", options=categorical_options['City'])
             profession = col1.selectbox("Profession", options=categorical_options['Profession'])
             degree = col1.selectbox("Degree", options=categorical_options['Degree'])
+            academic_pressure = col1.slider("Academic Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
+            study_satisfaction = col1.slider("Study Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
         
         # Column 2: Lifestyle and Mental Health Inputs
         with col2:
-            cgpa = col2.slider("CGPA (0–10 Scale)", min_value=0.0, max_value=10.0, value=3.0, step=0.01)
+            cgpa = col2.slider("CGPA (0–4 Scale)", min_value=0.0, max_value=4.0, value=3.0, step=0.1)
             work_study_hours = col2.slider("Work/Study Hours per Week", min_value=0, max_value=80, value=40)
+            work_pressure = col2.slider("Work Pressure (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
+            job_satisfaction = col2.slider("Job Satisfaction (0 = None, 5 = Immense)", min_value=0, max_value=5, value=0)
+            sleep_duration = col2.selectbox("Sleep Duration", options=['Less than 5 hours', '5-6 hours', '6-7 hours', '7-8 hours', 'More than 8 hours'])
             dietary_habits = col2.selectbox("Dietary Habits", options=categorical_options['Dietary_Habits'])
-            sleep_duration = col2.selectbox("Sleep Duration", options=categorical_options['Sleep_Duration'])
+            financial_stress = col2.slider("Financial Stress (0 = None, 5 = Very High)", min_value=0, max_value=5, value=0)
             suicidal_thoughts = col2.radio("Have you ever had suicidal thoughts?", options=categorical_options['Have_you_ever_had_suicidal_thoughts_'])
             family_history = col2.radio("Family History of Mental Illness?", options=categorical_options['Family_History_of_Mental_Illness'])
         
@@ -52,10 +61,15 @@ def show_input_form():
             'City': city,
             'Profession': profession,
             'Degree': degree,
+            'Academic_Pressure': academic_pressure,
+            'Work_Pressure': work_pressure,
             'CGPA': cgpa,
-            'Work_Study_Hours': work_study_hours,
-            'Dietary_Habits': dietary_habits,
+            'Study_Satisfaction': study_satisfaction,
+            'Job_Satisfaction': job_satisfaction,
             'Sleep_Duration': sleep_duration,
+            'Dietary_Habits': dietary_habits,
+            'Work_Study_Hours': work_study_hours,
+            'Financial_Stress': financial_stress,
             'Have_you_ever_had_suicidal_thoughts_': suicidal_thoughts,
             'Family_History_of_Mental_Illness': family_history
         }
@@ -63,14 +77,29 @@ def show_input_form():
         user_df = pd.DataFrame([user_input])
 
         try:
+            # Encode ordinal variables
+            for col in ordinal_columns:
+                if col == 'Sleep_Duration':
+                    # Use the mapping stored in label_encoders
+                    user_df[col] = user_df[col].map(label_encoders[col])
+                else:
+                    # Use LabelEncoder for other ordinal variables
+                    user_df[col] = label_encoders[col].transform(user_df[col].astype(int))
+
+            # Normalize numerical features
             numerical_columns = ['Age', 'CGPA', 'Work_Study_Hours']
             user_df[numerical_columns] = scaler.transform(user_df[numerical_columns])
+
+            # One-hot encode nominal categorical variables
             user_df_encoded = pd.get_dummies(user_df, columns=nominal_columns, drop_first=True)
+
+            # Align with model features
             missing_cols = set(feature_names) - set(user_df_encoded.columns)
             for col in missing_cols:
                 user_df_encoded[col] = 0
             user_df_encoded = user_df_encoded[feature_names]
 
+            # Make prediction
             prediction = model.predict(user_df_encoded)
             st.session_state.prediction = prediction[0]
             
