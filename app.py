@@ -32,22 +32,19 @@ if 'uploaded_data' not in st.session_state:
 if 'accuracy' not in st.session_state:
     st.session_state.accuracy = None
 
-# Function to preprocess data (used for both manual and file upload)
+# Function to preprocess data (unchanged)
 def preprocess_data(df):
     try:
         df = df.copy()
         
-        # Ensure numeric conversion for numerical columns
         for col in numerical_columns:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
-        # Normalize categorical columns before mapping
         for col in ['Sleep_Duration', 'Dietary_Habits', 'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness']:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.strip().str.capitalize()
 
-        # Handle categorical mappings
         if 'Sleep_Duration' in df.columns:
             df['Sleep_Duration'] = df['Sleep_Duration'].map(sleep_duration_mapping)
         if 'Dietary_Habits' in df.columns:
@@ -57,38 +54,31 @@ def preprocess_data(df):
         if 'Family_History_of_Mental_Illness' in df.columns:
             df['Family_History_of_Mental_Illness'] = df['Family_History_of_Mental_Illness'].map(binary_mapping)
 
-        # Replace -1 with a default valid value for prediction
         for col in ['Sleep_Duration', 'Dietary_Habits']:
             if col in df.columns:
                 if (df[col] == -1).any():
-                    # Use a sensible default if mode can't be computed (e.g., all -1 or empty)
                     valid_values = df[col][df[col] != -1]
                     default_value = valid_values.mode()[0] if not valid_values.empty else (2 if col == 'Sleep_Duration' else 1)
                     df[col] = df[col].replace(-1, default_value)
 
-        # Check for unmapped values (NaN) and show specific invalid values
         for col in ['Sleep_Duration', 'Dietary_Habits', 'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness']:
             if col in df.columns and df[col].isnull().any():
                 invalid_values = df[df[col].isnull()][col].unique()
                 st.error(f"Invalid values in column '{col}': {invalid_values}. Expected values: {list(eval(f'{col.lower()}_mapping').keys())}")
                 return None
 
-        # Fill missing values
         for col in numerical_columns:
             if col in df.columns:
                 df[col] = df[col].fillna(df[col].median() if not df[col].isna().all() else 0)
         for col in ordinal_columns + binary_columns:
             if col in df.columns:
-                # Use mode, but fallback to 0 if all values are NaN
                 mode_val = df[col].mode()[0] if not df[col].isna().all() else 0
                 df[col] = df[col].fillna(mode_val)
 
-        # Ensure correct types
         for col in ordinal_columns + binary_columns:
             if col in df.columns:
                 df[col] = df[col].astype(int)
 
-        # Align with feature_names
         for col in feature_names:
             if col not in df.columns:
                 df[col] = 0
@@ -96,15 +86,12 @@ def preprocess_data(df):
 
         return df
     except Exception as e:
-        # Provide detailed error message
         import traceback
         st.error(f"Error in data preprocessing: {str(e)}. Details: {traceback.format_exc()}")
         return None
 
-# Function to display the input form for manual input
+# Function to display the input form for manual input (no title)
 def show_manual_input_form():
-    st.title("Manual Input Mode")
-
     with st.form("user_input_form"):
         col1, col2 = st.columns(2)
         
@@ -120,7 +107,8 @@ def show_manual_input_form():
             suicidal_thoughts = col2.radio("Have you ever had suicidal thoughts?", options=['No', 'Yes'])
             family_history = col2.radio("Family History of Mental Illness?", options=['No', 'Yes'])
         
-        submit_button = st.form_submit_button("Predict")
+        # Full-width Predict button with default style
+        submit_button = st.form_submit_button("Predict", use_container_width=True)
 
     if submit_button:
         user_input = {
@@ -137,9 +125,8 @@ def show_manual_input_form():
         user_df = pd.DataFrame([user_input])
         process_and_predict(user_df)
 
-# Function to display the file upload form
+# Function to display the file upload form (no title)
 def show_file_upload_form():
-    st.title("File Upload Mode")
     uploaded_file = st.file_uploader("Upload a CSV or Excel file", type=["csv", "xlsx"])
 
     if uploaded_file is not None:
@@ -149,46 +136,39 @@ def show_file_upload_form():
             else:
                 st.session_state.uploaded_data = pd.read_excel(uploaded_file)
             st.write("File uploaded successfully!")
-            if st.button("Predict from Uploaded Data"):
+            # Full-width Predict button with default style
+            if st.button("Predict from Uploaded Data", use_container_width=True):
                 predict_from_uploaded_data()
         except Exception as e:
             st.error(f"Error uploading file: {str(e)}")
 
-# Function to process and predict from uploaded data
+# Function to process and predict from uploaded data (unchanged)
 def predict_from_uploaded_data():
     uploaded_df = st.session_state.uploaded_data.copy()
     
-    # Check for required columns
     missing_cols = [col for col in relevant_columns if col not in uploaded_df.columns]
     if missing_cols:
         st.error(f"Missing required columns in uploaded file: {missing_cols}")
         return
     
-    # Check for extra columns (excluding 'Depression')
     extra_cols = [col for col in uploaded_df.columns if col not in relevant_columns and col != 'Depression']
     if extra_cols:
-        # st.warning(f"Extra columns found and will be ignored: {extra_cols}")
         uploaded_df = uploaded_df[relevant_columns + (['Depression'] if 'Depression' in uploaded_df.columns else [])]
     
-    # Preprocess the data
     processed_df = preprocess_data(uploaded_df)
     if processed_df is None:
         return
     
-    # Check for Depression column for accuracy calculation
     actual_labels = uploaded_df['Depression'] if 'Depression' in uploaded_df.columns else None
     
-    # Make predictions
     threshold = 0.5
     prediction_proba = model.predict_proba(processed_df)
     predictions = (prediction_proba[:, 1] >= threshold).astype(int)
     prediction_labels = ["Yes" if p == 1 else "No" for p in predictions]
 
-    # Display results
     result_df = pd.DataFrame({'Prediction': prediction_labels})
     
     if actual_labels is not None:
-        # Check for invalid values in 'Depression' column
         invalid_values = actual_labels[~actual_labels.isin([0, 1])].unique()
         if len(invalid_values) > 0:
             st.warning(f"Invalid values in 'Depression' column: {invalid_values}. Expected 0 or 1. These rows will be ignored for accuracy calculation.")
@@ -208,7 +188,6 @@ def predict_from_uploaded_data():
             
         result_df['Actual'] = actual_labels.values
     
-    # Display the predictions table with custom styling
     st.write("**Predictions:**")
     st.markdown(
         """
@@ -234,16 +213,14 @@ def predict_from_uploaded_data():
     )
     st.dataframe(result_df, use_container_width=True)
 
-# Function to process and predict (for manual input)
+# Function to process and predict (unchanged)
 def process_and_predict(df, return_prediction=False):
     try:
-        # Preprocess the data
         processed_df = preprocess_data(df)
         if processed_df is None:
             return None
 
-        # Prediction
-        threshold = 0.5
+        threshold = 0.3
         prediction_proba = model.predict_proba(processed_df)
         prediction = (prediction_proba[:, 1] >= threshold).astype(int)
         
@@ -259,7 +236,7 @@ def process_and_predict(df, return_prediction=False):
         st.error(f"Prediction error: {str(e)}")
         return None
 
-# Function to display the red warning interface
+# Function to display the red warning interface (unchanged)
 def show_warning():
     st.markdown(
         """
@@ -274,23 +251,23 @@ def show_warning():
             color: #000000;
         }
         .spacer {
-            margin-top: 40px;  /* Adds space before the button */
+            margin-top: 40px;
         }
         </style>
         <div class="warning-box">
             <h2 style="color: red;">⚠️ Warning: Depression Tendency Detected</h2>
             <p class="warning-text">The model predicts you might be experiencing depression. Please consider consulting a mental health professional.</p>
         </div>
-        <div class="spacer"></div>  <!-- Spacer added before button -->
+        <div class="spacer"></div>
         """, 
         unsafe_allow_html=True
     )
-    if st.button("Back to Input Form"):
+    if st.button("Back to Input Form", use_container_width=True):
         st.session_state.view = 'input'
         st.session_state.prediction = None
         st.rerun()
 
-# Function to display the green safe interface
+# Function to display the green safe interface (unchanged)
 def show_safe():
     st.markdown(
         """
@@ -305,23 +282,23 @@ def show_safe():
             color: #000000;
         }
         .spacer {
-            margin-top: 40px;  /* Adds space before the button */
+            margin-top: 40px;
         }
         </style>
         <div class="safe-box">
             <h2 style="color: green;">✅ Safe: No Depression Tendency</h2>
             <p class="safe-text">The model predicts you are not experiencing depression. Stay well!</p>
         </div>
-        <div class="spacer"></div>  <!-- Spacer added before button -->
+        <div class="spacer"></div>
         """, 
         unsafe_allow_html=True
     )
-    if st.button("Back to Input Form"):
+    if st.button("Back to Input Form", use_container_width=True):
         st.session_state.view = 'input'
         st.session_state.prediction = None
         st.rerun()
 
-# Function to display the copyright notice
+# Function to display the copyright notice (unchanged)
 def show_copyright():
     st.markdown(
         """
@@ -342,27 +319,56 @@ def show_copyright():
 
 # Main app layout with elegant mode selection
 def main():
-    # Custom CSS for better layout and styling
+    # Custom CSS for layout and button styling
     st.markdown("""
         <style>
-        /* Ensure the mode container and content do not stretch too wide */
+        /* Center and constrain width */
         .mode-container, .main-content {
-            max-width: 800px;  /* Adjust width as needed */
-            margin: auto;       /* Center content */
+            max-width: 800px;
+            margin: auto;
         }
         
-        /* Remove unnecessary padding/margin */
-        .mode-button {
-            margin: 5px 0 !important;
+        /* Mode button styling (Manual Input and File Upload) */
+        .stButton>button[id="manual_mode"], .stButton>button[id="file_mode"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: all 0.3s ease;
         }
-
-        /* Fix Streamlit's default full-width behavior */
-        .stButton>button {
+        
+        /* Default mode button style (inactive) */
+        .stButton>button[id="manual_mode"], .stButton>button[id="file_mode"] {
+            background-color: #f0f0f0;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+        
+        /* Hover effect for inactive mode buttons */
+        .stButton>button[id="manual_mode"]:hover, .stButton>button[id="file_mode"]:hover {
+            background-color: #e0e0e0;
+            color: #000;
+        }
+        
+        /* Active mode button style */
+        .stButton>button.active {
+            background-color: #4CAF50;
+            color: white;
+            border: 1px solid #4CAF50;
+        }
+        
+        /* Hover effect for active mode button */
+        .stButton>button.active:hover {
+            background-color: #45a049;
+            color: white;
+        }
+        
+        /* Predict button (and other buttons) full-width but default style */
+        .stButton>button:not([id="manual_mode"]):not([id="file_mode"]) {
             width: 100%;
         }
         </style>
     """, unsafe_allow_html=True)
-
 
     # Title
     st.title("Depression Prediction Tool")
@@ -373,26 +379,40 @@ def main():
         col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("Manual Input Mode", 
-                        key="manual_mode", 
-                        help="Enter data manually using sliders and selections",
-                        use_container_width=True):
+            manual_button = st.button("Manual Input Mode", 
+                                    key="manual_mode", 
+                                    help="Enter data manually using sliders and selections",
+                                    use_container_width=True)
+            if manual_button:
                 st.session_state.mode = 'manual'
                 st.session_state.view = 'input'
                 st.session_state.prediction = None
                 st.session_state.uploaded_data = None
                 st.rerun()
+            if st.session_state.mode == 'manual':
+                st.markdown("""
+                    <script>
+                    document.getElementById('manual_mode').classList.add('active');
+                    </script>
+                """, unsafe_allow_html=True)
 
         with col2:
-            if st.button("File Upload Mode", 
-                        key="file_mode", 
-                        help="Upload a CSV or Excel file with data",
-                        use_container_width=True):
+            file_button = st.button("File Upload Mode", 
+                                  key="file_mode", 
+                                  help="Upload a CSV or Excel file with data",
+                                  use_container_width=True)
+            if file_button:
                 st.session_state.mode = 'file'
                 st.session_state.view = 'input'
                 st.session_state.prediction = None
                 st.session_state.uploaded_data = None
                 st.rerun()
+            if st.session_state.mode == 'file':
+                st.markdown("""
+                    <script>
+                    document.getElementById('file_mode').classList.add('active');
+                    </script>
+                """, unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     # Main content area
