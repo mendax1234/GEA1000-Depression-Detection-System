@@ -155,7 +155,7 @@ def predict_from_uploaded_data():
     # Check for extra columns (excluding 'Depression')
     extra_cols = [col for col in uploaded_df.columns if col not in relevant_columns and col != 'Depression']
     if extra_cols:
-        st.warning(f"Extra columns found and will be ignored: {extra_cols}")
+        # st.warning(f"Extra columns found and will be ignored: {extra_cols}")
         uploaded_df = uploaded_df[relevant_columns + (['Depression'] if 'Depression' in uploaded_df.columns else [])]
     
     # Preprocess the data
@@ -167,7 +167,7 @@ def predict_from_uploaded_data():
     actual_labels = uploaded_df['Depression'] if 'Depression' in uploaded_df.columns else None
     
     # Make predictions
-    threshold = 0.3
+    threshold = 0.5
     prediction_proba = model.predict_proba(processed_df)
     predictions = (prediction_proba[:, 1] >= threshold).astype(int)
     prediction_labels = ["Yes" if p == 1 else "No" for p in predictions]
