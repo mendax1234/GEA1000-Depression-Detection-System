@@ -57,21 +57,31 @@ def preprocess_data(df):
         if 'Family_History_of_Mental_Illness' in df.columns:
             df['Family_History_of_Mental_Illness'] = df['Family_History_of_Mental_Illness'].map(binary_mapping)
 
-        # Check for unmapped values and show specific invalid values
+        # Replace -1 with a default valid value for prediction
+        for col in ['Sleep_Duration', 'Dietary_Habits']:
+            if col in df.columns:
+                if (df[col] == -1).any():
+                    # Use a sensible default if mode can't be computed (e.g., all -1 or empty)
+                    valid_values = df[col][df[col] != -1]
+                    default_value = valid_values.mode()[0] if not valid_values.empty else (2 if col == 'Sleep_Duration' else 1)
+                    df[col] = df[col].replace(-1, default_value)
+
+        # Check for unmapped values (NaN) and show specific invalid values
         for col in ['Sleep_Duration', 'Dietary_Habits', 'Have_you_ever_had_suicidal_thoughts_', 'Family_History_of_Mental_Illness']:
             if col in df.columns and df[col].isnull().any():
                 invalid_values = df[df[col].isnull()][col].unique()
                 st.error(f"Invalid values in column '{col}': {invalid_values}. Expected values: {list(eval(f'{col.lower()}_mapping').keys())}")
                 return None
 
-        # Fill missing values (leaving -1 intact)
+        # Fill missing values
         for col in numerical_columns:
             if col in df.columns:
-                df[col] = df[col].fillna(df[col].median())
+                df[col] = df[col].fillna(df[col].median() if not df[col].isna().all() else 0)
         for col in ordinal_columns + binary_columns:
             if col in df.columns:
-                # Only fill NaN values, not -1
-                df[col] = df[col].mask(df[col].isna(), df[col].replace(-1, np.nan).mode()[0])
+                # Use mode, but fallback to 0 if all values are NaN
+                mode_val = df[col].mode()[0] if not df[col].isna().all() else 0
+                df[col] = df[col].fillna(mode_val)
 
         # Ensure correct types
         for col in ordinal_columns + binary_columns:
@@ -86,7 +96,9 @@ def preprocess_data(df):
 
         return df
     except Exception as e:
-        st.error(f"Error in data preprocessing: {str(e)}")
+        # Provide detailed error message
+        import traceback
+        st.error(f"Error in data preprocessing: {str(e)}. Details: {traceback.format_exc()}")
         return None
 
 # Function to display the input form for manual input
@@ -231,7 +243,7 @@ def process_and_predict(df, return_prediction=False):
             return None
 
         # Prediction
-        threshold = 0.3
+        threshold = 0.5
         prediction_proba = model.predict_proba(processed_df)
         prediction = (prediction_proba[:, 1] >= threshold).astype(int)
         
