@@ -371,7 +371,7 @@ def main():
     """, unsafe_allow_html=True)
 
     # Title
-    st.title("Depression Prediction Tool")
+    st.title("Early Depression Detection System")
 
     # Mode selection with full-width buttons
     with st.container():
